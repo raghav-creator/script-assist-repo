@@ -1,36 +1,67 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, Logger } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
-  catch(exception: HttpException, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse();
 
-    // TODO: Implement comprehensive error handling
-    // This filter should:
-    // 1. Log errors appropriately based on their severity
-    // 2. Format error responses in a consistent way
-    // 3. Include relevant error details without exposing sensitive information
-    // 4. Handle different types of errors with appropriate status codes
+    // Determine HTTP status code
+    let status: number;
+    let message: string | string[];
+    let error: string;
 
-    this.logger.error(
-      `HTTP Exception: ${exception.message}`,
-      exception.stack,
-    );
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const res = exception.getResponse();
 
-    // Basic implementation (to be enhanced by candidates)
+      // Handle string or object response
+      if (typeof res === 'string') {
+        message = res;
+        error = res;
+      } else if (typeof res === 'object') {
+        message = (res as any).message || 'Unexpected error';
+        error = (res as any).error || exception.message;
+      } else {
+        message = exception.message;
+        error = exception.message;
+      }
+    } else {
+      // Unhandled exceptions default to 500
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = 'Internal server error';
+      error = (exception as any)?.message || 'Unknown error';
+    }
+
+    // Log errors (sensitive stack info is only logged, not exposed to clients)
+    if (status >= 500) {
+      this.logger.error(
+        `HTTP ${status} Error: ${error}`,
+        (exception as any)?.stack,
+      );
+    } else {
+      this.logger.warn(`HTTP ${status} Warning: ${error}`);
+    }
+
+
     response.status(status).json({
       success: false,
       statusCode: status,
-      message: exception.message,
+      error,
+      message,
       path: request.url,
       timestamp: new Date().toISOString(),
     });
   }
-} 
+}
