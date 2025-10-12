@@ -1,8 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -12,75 +10,69 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+  private readonly refreshTokenExpiry = '7d';
+  private readonly accessTokenExpiry = '15m';
 
-    const user = await this.usersService.findByEmail(email);
-    
-    if (!user) {
-      throw new UnauthorizedException('Invalid email');
+  async login(loginDto: { email: string; password: string }) {
+    const user = await this.usersService.findByEmail(loginDto.email);
+    if (!user || !(await bcrypt.compare(loginDto.password, user.password))) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordValid = await bcrypt.compare(password, user.password);
-    
-    if (!passwordValid) {
-      throw new UnauthorizedException('Invalid password');
+    return this.generateTokens(user.id);
+  }
+
+  async register(registerDto: { email: string; password: string; name?: string }) {
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const user = await this.usersService.create({
+      ...registerDto,
+      password: hashedPassword,
+      name: registerDto.name || '',
+    });
+
+    return this.generateTokens(user.id);
+  }
+
+  async refreshToken(refreshToken: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+    } catch (err) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const payload = { 
-      sub: user.id, 
-      email: user.email, 
-      role: user.role
-    };
+    const user = await this.usersService.findById(payload.sub);
+    if (!user || !user.hashedRefreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.hashedRefreshToken);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return this.generateTokens(user.id);
+  }
+
+  private async generateTokens(userId: string) {
+    const accessToken = this.jwtService.sign(
+      { sub: userId },
+      { secret: process.env.JWT_SECRET, expiresIn: this.accessTokenExpiry },
+    );
+
+    const refreshToken = this.jwtService.sign(
+      { sub: userId },
+      { secret: process.env.JWT_REFRESH_SECRET, expiresIn: this.refreshTokenExpiry },
+    );
+
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.usersService.updateRefreshToken(userId, hashedRefreshToken);
 
     return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
+      accessToken,
+      refreshToken,
     };
   }
-
-  async register(registerDto: RegisterDto) {
-    const existingUser = await this.usersService.findByEmail(registerDto.email);
-
-    if (existingUser) {
-      throw new UnauthorizedException('Email already exists');
-    }
-
-    const user = await this.usersService.create(registerDto);
-
-    const token = this.generateToken(user.id);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      token,
-    };
-  }
-
-  private generateToken(userId: string) {
-    const payload = { sub: userId };
-    return this.jwtService.sign(payload);
-  }
-
-  async validateUser(userId: string): Promise<any> {
-    const user = await this.usersService.findOne(userId);
-    
-    if (!user) {
-      return null;
-    }
-    
-    return user;
-  }
-
-  async validateUserRoles(userId: string, requiredRoles: string[]): Promise<boolean> {
-    return true;
-  }
-} 
+}
