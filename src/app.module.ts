@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bullmq';
+import { BullModule  } from '@nestjs/bullmq';
+import { TerminusModule } from '@nestjs/terminus';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './modules/users/users.module';
@@ -13,73 +14,66 @@ import { CacheService } from './common/services/cache.service';
 
 @Module({
   imports: [
-    // Configuration
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    
-    // Database
+    // Global configuration
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    // Database configuration
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_DATABASE'),
+        host: config.get<string>('DB_HOST'),
+        port: Number(config.get<number>('DB_PORT')),
+        username: config.get<string>('DB_USERNAME'),
+        password: config.get<string>('DB_PASSWORD'),
+        database: config.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development',
-        logging: configService.get('NODE_ENV') === 'development',
+        synchronize: config.get('NODE_ENV') === 'development',
+        logging: config.get('NODE_ENV') === 'development',
       }),
     }),
-    
-    // Scheduling
+
+    // Scheduling module
     ScheduleModule.forRoot(),
-    
-    // Queue
+
+    // Queue module (BullMQ)
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (config: ConfigService) => ({
+        isGlobal: true,
         connection: {
-          host: configService.get('REDIS_HOST'),
-          port: configService.get('REDIS_PORT'),
+          host: config.get<string>('REDIS_HOST'),
+          port: Number(config.get<number>('REDIS_PORT')),
         },
       }),
     }),
-    
-    // Rate limiting
+
+    // Rate limiting (Throttler)
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ([
-        {
-          ttl: 60,
-          limit: 10,
-        },
-      ]),
+      useFactory: () => ({
+        ttl: 60,
+        limit: 10,
+        
+      }),
     }),
-    
-    // Feature modules
     UsersModule,
     TasksModule,
     AuthModule,
-    
-    // Queue processing modules
     TaskProcessorModule,
     ScheduledTasksModule,
+    TerminusModule
   ],
   providers: [
-    // Inefficient: Global cache service with no configuration options
-    // This creates a single in-memory cache instance shared across all modules
-    CacheService
+    
+    CacheService,
   ],
   exports: [
-    // Exporting the cache service makes it available to other modules
-    // but creates tight coupling
-    CacheService
-  ]
+    
+    CacheService,
+  ],
 })
-export class AppModule {} 
+export class AppModule {}
