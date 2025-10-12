@@ -20,6 +20,9 @@ export class User {
   @Column({ default: 'user' })
   role: string;
 
+  @Column({ nullable: true })
+  hashedRefreshToken: string | null;
+
   @OneToMany(() => Task, (task) => task.user)
   tasks: Task[];
 

@@ -20,6 +20,10 @@ export class UserResponseDto {
   role: string;
 
   @Expose()
+  @ApiProperty({example: "ldngkjbdgjkdjkgbdkbgkjd"})
+  hashedRefreshToken: string | null;
+
+  @Expose()
   @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
   createdAt: Date;
 
