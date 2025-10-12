@@ -7,7 +7,7 @@ import {
   import { JwtService } from '@nestjs/jwt';
   import { Request } from 'express';
   import * as bcrypt from 'bcrypt';
-  import { UsersService } from '../../users/users.service';
+  import { UsersService } from '../../modules/users/users.service';
   
   @Injectable()
   export class JwtAuthGuard implements CanActivate {
