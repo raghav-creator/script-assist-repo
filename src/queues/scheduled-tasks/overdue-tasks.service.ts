@@ -13,36 +13,55 @@ export class OverdueTasksService {
 
   constructor(
     @InjectQueue('task-processing')
-    private taskQueue: Queue,
+    private readonly taskQueue: Queue,
     @InjectRepository(Task)
-    private tasksRepository: Repository<Task>,
+    private readonly tasksRepository: Repository<Task>,
   ) {}
 
-  // TODO: Implement the overdue tasks checker
-  // This method should run every hour and check for overdue tasks
+  
   @Cron(CronExpression.EVERY_HOUR)
-  async checkOverdueTasks() {
-    this.logger.debug('Checking for overdue tasks...');
-    
-    // TODO: Implement overdue tasks checking logic
-    // 1. Find all tasks that are overdue (due date is in the past)
-    // 2. Add them to the task processing queue
-    // 3. Log the number of overdue tasks found
-    
-    // Example implementation (incomplete - to be implemented by candidates)
+  async checkOverdueTasks(): Promise<void> {
+    this.logger.debug('Running overdue tasks check...');
+
     const now = new Date();
+
+    
     const overdueTasks = await this.tasksRepository.find({
       where: {
         dueDate: LessThan(now),
         status: TaskStatus.PENDING,
       },
     });
-    
+
+    if (!overdueTasks.length) {
+      this.logger.debug('No overdue tasks found');
+      return;
+    }
+
     this.logger.log(`Found ${overdueTasks.length} overdue tasks`);
+
+   
+    for (const task of overdueTasks) {
+      try {
+        
+        task.status = TaskStatus.OVERDUE;
+        await this.tasksRepository.save(task);
+
     
-    // Add tasks to the queue to be processed
-    // TODO: Implement adding tasks to the queue
-    
+        await this.taskQueue.add('overdue-task', {
+          taskId: task.id,
+          action: 'mark-overdue',
+        });
+
+        this.logger.debug(`Queued overdue task ID: ${task.id}`);
+      } catch (error:any) {
+        this.logger.error(
+          `Failed to process overdue task ID: ${task.id}`,
+          error.stack,
+        );
+      }
+    }
+
     this.logger.debug('Overdue tasks check completed');
   }
-} 
+}
