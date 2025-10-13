@@ -12,6 +12,11 @@ import { TaskProcessorModule } from './queues/task-processor/task-processor.modu
 import { ScheduledTasksModule } from './queues/scheduled-tasks/scheduled-tasks.module';
 import { CacheService } from './common/services/cache.service';
 import { DatabaseModule } from "./core/database/database.module";
+import { RedisCacheService } from './core/caching/cache.service';
+import { RedlockService } from '@common/locks/redlock.service';
+import { CircuitBreakerService } from '@common/circuit-breaker';
+import { MetricsService } from '@common/metrics/metrics.service';
+import { QueueService } from '@common/queue.service';
 @Module({
   imports: [
     // Global configuration
@@ -61,14 +66,15 @@ import { DatabaseModule } from "./core/database/database.module";
       }),
     }),
     UsersModule,
-    TasksModule,
+    TaskModule,
     AuthModule,
     TaskProcessorModule,
     ScheduledTasksModule,
     TerminusModule
   ],
   providers: [
-    
+    RedisCacheService, RedlockService,  QueueService,
+    MetricsService, CircuitBreakerService,
     CacheService,
   ],
   exports: [

@@ -1,78 +1,51 @@
-import { Injectable, Logger } from '@nestjs/common';
+// src/common/cache/redis-cache.service.ts
+import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
+import { randomUUID } from 'crypto';
 
 @Injectable()
-export class CacheService {
-  private readonly redis: Redis;
-  private readonly logger = new Logger(CacheService.name);
+export class RedisCacheService implements OnModuleDestroy {
+  private readonly logger = new Logger(RedisCacheService.name);
+  private client: Redis.Redis;
+  private sub: Redis.Redis;
+  private instanceId = randomUUID();
 
   constructor() {
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-  }
+    const url = process.env.REDIS_URL || 'redis://localhost:6379';
+    this.client = new Redis(url);
+    this.sub = new Redis(url);
 
-  async set<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
-    try {
-      const serialized = JSON.stringify(value);
-      if (ttlSeconds > 0) {
-        await this.redis.set(key, serialized, 'EX', ttlSeconds);
-      } else {
-        await this.redis.set(key, serialized);
+    this.sub.subscribe('cache-invalidate', (err) => {
+      if (err) this.logger.error('subscribe error', err);
+    });
+
+    this.sub.on('message', (channel, message) => {
+      try {
+        const { key, origin } = JSON.parse(message);
+        if (origin === this.instanceId) return; // ignore self
+        this.client.del(key).catch(e => this.logger.warn('del failed', e));
+      } catch (e) {
+        this.logger.error('invalid invalidate message', e);
       }
-    } catch (error:any) {
-      this.logger.error(`Failed to set cache key ${key}: ${error.message}`, error.stack);
-    }
+    });
   }
-
 
   async get<T>(key: string): Promise<T | null> {
-    try {
-      const data = await this.redis.get(key);
-      if (!data) return null;
-      return JSON.parse(data) as T;
-    } catch (error:any) {
-      this.logger.error(`Failed to get cache key ${key}: ${error.message}`, error.stack);
-      return null;
-    }
+    const v = await this.client.get(key);
+    return v ? JSON.parse(v) as T : null;
   }
 
-  async delete(key: string): Promise<boolean> {
-    try {
-      const result = await this.redis.del(key);
-      return result > 0;
-    } catch (error:any) {
-      this.logger.error(`Failed to delete cache key ${key}: ${error.message}`, error.stack);
-      return false;
-    }
+  async set(key: string, value: any, ttlSeconds = 300) {
+    await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
   }
 
- 
-  async clear(): Promise<void> {
-    try {
-      await this.redis.flushdb();
-      this.logger.log('Cache cleared successfully');
-    } catch (error:any) {
-      this.logger.error(`Failed to clear cache: ${error.message}`, error.stack);
-    }
+  async invalidate(key: string) {
+    await this.client.del(key);
+    await this.client.publish('cache-invalidate', JSON.stringify({ key, origin: this.instanceId }));
   }
 
-  
-  async has(key: string): Promise<boolean> {
-    try {
-      const exists = await this.redis.exists(key);
-      return exists === 1;
-    } catch (error:any) {
-      this.logger.error(`Failed to check cache key ${key}: ${error.message}`, error.stack);
-      return false;
-    }
-  }
-
-
-  async incr(key: string): Promise<number> {
-    return this.redis.incr(key);
-  }
-
- 
-  async decr(key: string): Promise<number> {
-    return this.redis.decr(key);
+  async onModuleDestroy() {
+    await this.client.quit();
+    await this.sub.quit();
   }
 }

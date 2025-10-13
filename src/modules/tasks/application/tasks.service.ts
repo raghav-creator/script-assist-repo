@@ -10,6 +10,12 @@ import { TransactionService } from '../../../core/database/transaction.service';
 
 @Injectable()
 export class TasksService {
+  getTaskStatusEnum(): { [s: string]: unknown; } | ArrayLike<unknown> {
+    throw new Error('Method not implemented.');
+  }
+  updateStatus(taskId: string, status: TaskStatus) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     @InjectRepository(Task)
     private readonly tasksRepository: Repository<Task>,
@@ -39,6 +45,8 @@ export class TasksService {
       const taskRepo = manager.getRepository(Task);
       const task = await taskRepo.findOneBy({ id });
       if (!task) throw new NotFoundException('Task not found');
+      
+
 
       Object.assign(task, updateData);
       const updated = await taskRepo.save(task);
