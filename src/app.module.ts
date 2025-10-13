@@ -5,13 +5,13 @@ import { BullModule  } from '@nestjs/bullmq';
 import { TerminusModule } from '@nestjs/terminus';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
-import { UsersModule } from './modules/users/users.module';
-import { TasksModule } from './modules/tasks/tasks.module';
+import { UsersModule } from '../src/modules/users/infrastructure/users.module';
+import { TaskModule } from '../src/modules/tasks/infrastructure/tasks.module';
 import { AuthModule } from './modules/auth/infrastructure/auth.module';
 import { TaskProcessorModule } from './queues/task-processor/task-processor.module';
 import { ScheduledTasksModule } from './queues/scheduled-tasks/scheduled-tasks.module';
 import { CacheService } from './common/services/cache.service';
-
+import { DatabaseModule } from "./core/database/database.module";
 @Module({
   imports: [
     // Global configuration

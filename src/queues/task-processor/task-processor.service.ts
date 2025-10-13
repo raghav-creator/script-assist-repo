@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost, OnQueueFailed, OnQueueActive } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { TasksService } from '../../modules/tasks/tasks.service';
+import { TasksService } from '../../modules/tasks/application/tasks.service';
 import { TaskStatus } from '../../modules/tasks/enums/task-status.enum';
 
 @Injectable()

@@ -4,7 +4,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
-import { Task } from '../../modules/tasks/entities/task.entity';
+import { Task } from '../../modules/tasks/domain/tasks.entity';
 import { TaskStatus } from '../../modules/tasks/enums/task-status.enum';
 
 @Injectable()
