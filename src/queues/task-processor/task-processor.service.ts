@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Processor, WorkerHost, OnQueueFailed, OnQueueActive } from '@nestjs/bullmq';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { TasksService } from '../../modules/tasks/application/tasks.service';
 import { TaskStatus } from '../../modules/tasks/enums/task-status.enum';
@@ -31,8 +31,17 @@ export class TaskProcessorService extends WorkerHost {
         `Error processing job ${job.id}: ${error.message || 'Unknown error'}`,
         error.stack,
       );
-      throw error; // Allow BullMQ to handle retries
+      throw error;
     }
+  }
+
+  onActive(job: Job) {
+    this.logger.debug(`Job active ${job.id} of type ${job.name}`);
+  }
+
+  onFailed(job: Job | undefined, error: Error) {
+    if (!job) return;
+    this.logger.error(`Job failed ${job.id}: ${error.message}`, error.stack);
   }
 
   private async handleStatusUpdate(job: Job) {
@@ -43,7 +52,6 @@ export class TaskProcessorService extends WorkerHost {
       return { success: false, error: 'Missing required data' };
     }
 
-    // Validate status
     if (!Object.values(this.tasksService.getTaskStatusEnum()).includes(status)) {
       return { success: false, error: `Invalid status value: ${status}` };
     }
@@ -75,15 +83,5 @@ export class TaskProcessorService extends WorkerHost {
       this.logger.error(`Failed to process overdue task ${taskId}: ${err.message}`);
       throw err;
     }
-  }
-
-  @OnQueueFailed()
-  onJobFailed(job: Job, error: Error) {
-    this.logger.error(`Job failed ${job.id}: ${error.message}`, error.stack);
-  }
-
-  @OnQueueActive()
-  onJobActive(job: Job) {
-    this.logger.debug(`Job active ${job.id} of type ${job.name}`);
   }
 }

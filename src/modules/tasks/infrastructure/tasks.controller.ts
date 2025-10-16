@@ -2,15 +2,18 @@ import { Controller, Get, Post, Body, Param, Patch, Delete, Query } from '@nestj
 import { TasksService } from '../../tasks/application/tasks.service';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
-
+import { ApiBadRequestResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Task } from '../domain/tasks.entity';
 @Controller('tasks')
 export class TaskController {
   constructor(private readonly taskService: TasksService) {}
 
-  @Post()
-  create(@Body() dto: CreateTaskDto) {
-    return this.taskService.createTask(dto);
-  }
+//  @Post()
+// @ApiOperation({ summary: 'Create a new task' })
+// @ApiResponse({ status: 201, description: 'Task created successfully', type: Task })
+// async createTask(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
+//   return this.taskService.createTask(createTaskDto);
+// }
 
   @Get()
   findAll(@Query() query: any) {
@@ -23,12 +26,23 @@ export class TaskController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    return this.taskService.updateTask(id, dto);
-  }
+@ApiOperation({ summary: 'Update a task partially' })
+@ApiResponse({ status: 200, description: 'Task updated successfully' })
+async updateTask(
+  @Param('id') id: string,
+  @Body() updateTaskDto: UpdateTaskDto
+) {
+  return this.taskService.updateTask(id, updateTaskDto);
+}
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.taskService.deleteTask(id);
+  }
+  
+  @Post('batch')
+  batchProcess(@Body() body: { tasks: string[]; action: 'complete' | 'delete' }) {
+    const { tasks, action } = body;
+    return this.taskService.batchProcess(tasks, action);
   }
 }

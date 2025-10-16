@@ -1,9 +1,10 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
-import { User } from '../../modules/users/entities/user.entity';
-import { Task } from '../../modules/tasks/entities/task.entity';
-import { users } from './seed-data/users.seed';
-import { tasks } from './seed-data/tasks.seed';
+import { User } from '../../../modules/users/domain/user.entity';
+import { Task } from '../../../modules/tasks/domain/tasks.entity';
+import { users as userSeed } from './seed-data/users.seed';
+import { tasks as taskSeed } from './seed-data/tasks.seed';
+import { UserRole } from '../../../modules/users/domain/user-enum.role';
 
 // Load environment variables
 config();
@@ -17,38 +18,48 @@ const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'taskflow',
   entities: [User, Task],
-  synchronize: false,
+  synchronize: true, 
 });
 
-// Initialize and seed database
+// Helper function to ensure users have correct enum roles
+const prepareUsers = () =>
+  userSeed.map((u) => ({
+    ...u,
+    role: u.role === 'ADMIN' ? UserRole.ADMIN : UserRole.USER, // map string to enum
+  }));
+
 async function main() {
   try {
     // Initialize connection
     await AppDataSource.initialize();
-    console.log('Database connection initialized');
+    console.log(' Database connection initialized');
+
+    const userRepo = AppDataSource.getRepository(User);
+    const taskRepo = AppDataSource.getRepository(Task);
 
     // Clear existing data
-    await AppDataSource.getRepository(Task).delete({});
-    await AppDataSource.getRepository(User).delete({});
-    console.log('Existing data cleared');
+    await taskRepo.delete({});
+    await userRepo.delete({});
+    console.log(' Existing data cleared');
 
     // Seed users
-    await AppDataSource.getRepository(User).save(users);
-    console.log('Users seeded successfully');
+    const users = prepareUsers();
+    await userRepo.save(users);
+    console.log(`Seeded ${users.length} users successfully`);
 
     // Seed tasks
-    await AppDataSource.getRepository(Task).save(tasks);
-    console.log('Tasks seeded successfully');
+    await taskRepo.save(taskSeed);
+    console.log(` Seeded ${taskSeed.length} tasks successfully`);
 
-    console.log('Database seeding completed');
+    console.log(' Database seeding completed');
   } catch (error) {
-    console.error('Error during database seeding:', error);
+    console.error(' Error during database seeding:');
+    console.error(error);
   } finally {
-    // Close connection
     await AppDataSource.destroy();
-    console.log('Database connection closed');
+    console.log('🔌 Database connection closed');
   }
 }
 
 // Run the seeding
-main(); 
+main();

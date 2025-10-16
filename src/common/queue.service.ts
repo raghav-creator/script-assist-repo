@@ -11,7 +11,9 @@ export class QueueService {
   private readonly lowWatermark = Number(process.env.LOW_WATERMARK || 200);
 
   constructor() {
-    this.queue = new Queue('task-processing', { connection: this.redisOpts });
+    this.queue = new Queue('task-processing', {
+  connection: { host: 'localhost', port: 6379 },
+});
     // Optionally set up a periodic monitor (e.g., every 10s)
     setInterval(() => this.checkWatermarks().catch(e => this.logger.warn('wm check error', e)), 10_000);
   }

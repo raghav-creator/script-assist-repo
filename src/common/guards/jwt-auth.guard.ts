@@ -7,13 +7,13 @@ import {
   import { JwtService } from '@nestjs/jwt';
   import { Request } from 'express';
   import * as bcrypt from 'bcrypt';
-  import { UsersService } from '../../modules/users/users.service';
+  import { UsersService } from '../../modules/users/application/users.service';
   
   @Injectable()
   export class JwtAuthGuard implements CanActivate {
     constructor(
       private readonly jwtService: JwtService,
-      private readonly usersService: UsersService, // Used to validate refresh tokens
+      private readonly usersService: UsersService, 
     ) {}
   
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,12 +41,21 @@ import {
 
     async validateRefreshToken(userId: string, refreshToken: string): Promise<boolean> {
       const user = await this.usersService.findById(userId);
-      if (!user || !user.refreshTokenHash) return false;
-  
-      // Compare provided refresh token with hashed token in DB
-      const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
-      return isValid;
+      if (!user || !user.refreshTokens || user.refreshTokens.length === 0) {
+        return false;
+      }
+    
+      // Check if any refresh token entry matches the provided token
+      for (const tokenEntry of user.refreshTokens) {
+        const isValid = await bcrypt.compare(refreshToken, tokenEntry.hashedToken);
+        if (isValid) {
+          return true;
+        }
+      }
+    
+      return false;
     }
+    
   
     
     async hashToken(token: string): Promise<string> {

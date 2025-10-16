@@ -3,9 +3,10 @@ import Redis from 'ioredis';
 
 @Injectable()
 export class CacheService {
+
   private readonly redis: Redis;
   private readonly logger = new Logger(CacheService.name);
-
+  private cache = new Map<string, any>();
   constructor() {
     this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
   }
@@ -21,8 +22,9 @@ export class CacheService {
     } catch (error:any) {
       this.logger.error(`Failed to set cache key ${key}: ${error.message}`, error.stack);
     }
-  }
 
+  }
+ 
 
   async get<T>(key: string): Promise<T | null> {
     try {

@@ -56,15 +56,19 @@ import { QueueService } from '@common/queue.service';
     }),
 
     // Rate limiting (Throttler)
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: () => ({
-        ttl: 60,
-        limit: 10,
-        
-      }),
-    }),
+  ThrottlerModule.forRootAsync({
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (configService: ConfigService) => ({
+    throttlers: [
+      {
+        ttl: Number(configService.get('THROTTLE_TTL')) || 60,
+        limit: Number(configService.get('THROTTLE_LIMIT')) || 10,
+      },
+    ],
+  }),
+}),
+
     UsersModule,
     TaskModule,
     AuthModule,
@@ -78,7 +82,8 @@ import { QueueService } from '@common/queue.service';
     CacheService,
   ],
   exports: [
-    
+    RedisCacheService, RedlockService,  QueueService,
+    MetricsService, CircuitBreakerService,
     CacheService,
   ],
 })

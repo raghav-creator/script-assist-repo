@@ -1,36 +1,24 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TaskPriority } from '../enums/task-priority.enum';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { IsString, IsOptional, IsDateString, IsEnum } from 'class-validator';
+import { TaskStatus } from '../enums/task-status.enum'; // your enum for task statuses
 
 export class CreateTaskDto {
-  @ApiProperty({ example: 'Complete project documentation' })
+  @ApiProperty({ description: 'Title of the task' })
   @IsString()
-  @IsNotEmpty()
   title: string;
 
-  @ApiProperty({ example: 'Add details about API endpoints and data models', required: false })
-  @IsString()
+  @ApiProperty({ description: 'Description of the task', required: false })
   @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiProperty({ enum: TaskStatus, example: TaskStatus.PENDING, required: false })
+  @ApiProperty({ description: 'Due date of the task in ISO 8601 format', required: false })
+  @IsOptional()
+  @IsDateString() // validates ISO 8601 date string
+  dueDate?: string;
+
+  @ApiProperty({ description: 'Status of the task', enum: TaskStatus, required: false })
+  @IsOptional()
   @IsEnum(TaskStatus)
-  @IsOptional()
   status?: TaskStatus;
-
-  @ApiProperty({ enum: TaskPriority, example: TaskPriority.MEDIUM, required: false })
-  @IsEnum(TaskPriority)
-  @IsOptional()
-  priority?: TaskPriority;
-
-  @ApiProperty({ example: '2023-12-31T23:59:59Z', required: false })
-  @IsDateString()
-  @IsOptional()
-  dueDate?: Date;
-
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  @IsUUID()
-  @IsNotEmpty()
-  userId: string;
-} 
+}

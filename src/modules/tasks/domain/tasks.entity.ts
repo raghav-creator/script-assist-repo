@@ -32,8 +32,8 @@ export class Task {
   priority: TaskPriority;
   
   @Index()
-  @Column({ name: 'due_date', nullable: true })
-  dueDate: Date;
+  @Column({ type: 'timestamp', nullable: true })
+dueDate?: Date | null;
 
   @Column({ name: 'user_id' })
   userId: string;

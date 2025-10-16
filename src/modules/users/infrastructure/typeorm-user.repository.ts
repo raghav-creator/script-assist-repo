@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../domain/user.entity';
@@ -23,7 +23,30 @@ export class TypeOrmUserRepository implements IUserRepository {
     return this.repo.save(user);
   }
 
-  async updateRefreshToken(id: string, hashedToken: string | null): Promise<void> {
-    await this.repo.update(id, { hashedRefreshToken: hashedToken });
+  async updateRefreshToken(
+    id: string,
+    tokenEntry: { jti: string; hashedToken: string; createdAt: string; device?: string } | null
+  ): Promise<void> {
+    const user = await this.repo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+  
+    if (!user.refreshTokens) {
+      user.refreshTokens = [];
+    }
+  
+    if (tokenEntry) {
+      // Add new token
+      user.refreshTokens.push(tokenEntry);
+    } else {
+      // Clear all tokens
+      user.refreshTokens = [];
+    }
+  
+    user.updatedAt = new Date();
+  
+    await this.repo.save(user);
   }
+  
 }

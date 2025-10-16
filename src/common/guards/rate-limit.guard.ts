@@ -10,9 +10,9 @@ import Redis from 'ioredis';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private redis: Redis.Redis;
+  private redis: Redis;
 
-  constructor(private reflector: Reflector) {
+  constructor(private reflector: Reflector,private readonly limit = 5, private readonly windowMs = 60000) {
     this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
   }
 

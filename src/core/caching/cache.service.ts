@@ -1,4 +1,4 @@
-// src/common/cache/redis-cache.service.ts
+
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { randomUUID } from 'crypto';
@@ -6,8 +6,8 @@ import { randomUUID } from 'crypto';
 @Injectable()
 export class RedisCacheService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisCacheService.name);
-  private client: Redis.Redis;
-  private sub: Redis.Redis;
+  private client:Redis;
+  private sub: Redis;
   private instanceId = randomUUID();
 
   constructor() {

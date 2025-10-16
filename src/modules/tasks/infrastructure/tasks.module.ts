@@ -5,9 +5,11 @@ import { TasksService } from '../../tasks/application/tasks.service';
 import { TypeOrmTaskRepository } from './typeorm-task.repository';
 import { ITaskRepository } from '../../tasks/domain/tasks.repository';
 import { TaskController } from '../../tasks/infrastructure/tasks.controller';
-
+import { BullModule } from '@nestjs/bullmq';
 @Module({
-  imports: [TypeOrmModule.forFeature([Task])],
+  imports: [TypeOrmModule.forFeature([Task]), BullModule.registerQueue({
+      name: 'task-processing', 
+    }),],
   providers: [
     TasksService,
     { provide: ITaskRepository, useClass: TypeOrmTaskRepository },

@@ -2,8 +2,8 @@ import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from '../application/auth.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-
+import { ApiTags,ApiResponse, ApiOperation } from '@nestjs/swagger';
+import { RefreshTokenDto } from './../dto/refresh-dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -23,10 +23,10 @@ export class AuthController {
     return await this.authService.register(registerDto);
   }
 
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
+   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
-  async refresh(@Body('refreshToken') refreshToken: string) {
-    return await this.authService.refreshToken(refreshToken);
+  @ApiResponse({ status: 200, description: 'Returns new access and refresh tokens.' })
+  async refresh(@Body() body: RefreshTokenDto) {
+    return this.authService.rotateRefresh(body.refreshToken);
   }
 }

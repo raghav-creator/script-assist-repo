@@ -7,7 +7,7 @@ import Redis from 'ioredis';
 export class RedlockService {
   private redlock: Redlock;
   constructor() {
-    const client = new Redis(process.env.REDIS_URL);
+    const client = new Redis("redis://localhost:6379");
     this.redlock = new Redlock([client], {
       retryCount: 5,
       retryDelay: 200,

@@ -1,4 +1,4 @@
-// src/common/resilience/circuit-breaker.service.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import CircuitBreaker from 'opossum';
 import axios, { AxiosRequestConfig } from 'axios';
@@ -31,7 +31,7 @@ export class CircuitBreakerService {
     const breaker = this.breakers.get(key) ?? this.createBreaker(key);
     try {
       return await breaker.fire(config);
-    } catch (err) {
+    } catch (err:any) {
       
       this.logger.warn(`breaker fire failed for ${key}: ${err.message}`);
       throw err;

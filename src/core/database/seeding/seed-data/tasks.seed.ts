@@ -1,5 +1,5 @@
-import { TaskStatus } from '../../../modules/tasks/enums/task-status.enum';
-import { TaskPriority } from '../../../modules/tasks/enums/task-priority.enum';
+import { TaskStatus } from '../../../../modules/tasks/enums/task-status.enum';
+import { TaskPriority } from '../../../../modules/tasks/enums/task-priority.enum';
 
 export const tasks = [
   {
