@@ -4,16 +4,17 @@ import { CreateTaskDto } from '../dto/create-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { ApiBadRequestResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Task } from '../domain/tasks.entity';
+import { BatchTaskDto } from '../dto/batch-task.dto';
 @Controller('tasks')
 export class TaskController {
   constructor(private readonly taskService: TasksService) {}
 
-//  @Post()
-// @ApiOperation({ summary: 'Create a new task' })
-// @ApiResponse({ status: 201, description: 'Task created successfully', type: Task })
-// async createTask(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
-//   return this.taskService.createTask(createTaskDto);
-// }
+@Post()
+  @ApiOperation({ summary: 'Create a new task' })
+  @ApiResponse({ status: 201, description: 'Task created successfully', type: Task })
+  async createTask(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
+    return this.taskService.createTask(createTaskDto);
+  }
 
   @Get()
   findAll(@Query() query: any) {
@@ -40,9 +41,11 @@ async updateTask(
     return this.taskService.deleteTask(id);
   }
   
-  @Post('batch')
-  batchProcess(@Body() body: { tasks: string[]; action: 'complete' | 'delete' }) {
-    const { tasks, action } = body;
-    return this.taskService.batchProcess(tasks, action);
+@Post('batch')
+  @ApiOperation({ summary: 'Batch process tasks (complete or delete)' })
+  @ApiResponse({ status: 200, description: 'Batch processed successfully' })
+  async batchProcess(@Body() batchDto: BatchTaskDto) {
+    const { taskIds, action } = batchDto;
+    return this.taskService.batchProcess(taskIds, action);
   }
 }

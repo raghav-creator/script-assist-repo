@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -44,51 +44,98 @@ export class TasksService {
       .getMany();
 
     return { data, total };
+  } 
+
+  //  async createTask(data: CreateTaskDto): Promise<Task> {
+  //   try {
+  //     const createdTask = await this.transactionService.execute<Task>(async (manager: EntityManager) => {
+  //       const taskRepo = manager.getRepository(Task);
+
+  //       // Parse and validate dueDate
+  //       let dueDate: Date | null = null;
+  //       if (data.dueDate) {
+  //         const parsed = new Date(data.dueDate);
+  //         if (isNaN(parsed.getTime())) {
+  //           throw new InternalServerErrorException('Invalid dueDate format');
+  //         }
+  //         dueDate = parsed;
+  //       }
+
+  //       // Create and save task
+  //       const task = taskRepo.create({
+  //         title: data.title.trim(),
+  //         description: data.description ?? null,
+  //         dueDate,
+  //         status: data.status ?? TaskStatus.PENDING,
+  //         priority: data.priority ?? TaskPriority.MEDIUM,
+  //       });
+
+  //       const saved = await taskRepo.save(task);
+
+  //       // Add job to queue
+  //       if (this.taskQueue) {
+  //         await this.taskQueue.add('task-status-update', {
+  //           taskId: saved.id,
+  //           status: saved.status,
+  //         });
+  //       }
+
+  //       return saved;
+  //     });
+
+  //     return createdTask;
+  //   } catch (error) {
+  //     console.error('Failed to create task:', error);
+  //     throw new InternalServerErrorException('Failed to create task');
+  //   }
+  // }
+
+  async createTask(data: CreateTaskDto): Promise<Task> {
+  try {
+    return await this.transactionService.execute(async (manager) => {
+      const taskRepo = manager.getRepository(Task);
+
+      let dueDate: Date | undefined;
+      if (data.dueDate) {
+        const parsed = new Date(data.dueDate);
+        if (isNaN(parsed.getTime())) {
+          throw new InternalServerErrorException('Invalid dueDate format');
+        }
+        dueDate = parsed;
+      }
+
+      const task = taskRepo.create({
+        title: data.title.trim(),
+        description: data.description ?? undefined,
+        dueDate,
+        status: data.status ?? TaskStatus.PENDING,
+        priority: data.priority ?? TaskPriority.MEDIUM,
+      });
+
+      const savedTask = await taskRepo.save(task);
+
+      if (this.taskQueue) {
+        await this.taskQueue.add('task-status-update', {
+          taskId: savedTask.id,
+          status: savedTask.status,
+        });
+      }
+
+      return savedTask;
+    });
+  } catch (error) {
+    console.error('Failed to create task:', error);
+    throw new InternalServerErrorException('Failed to create task');
   }
+}
+
+
 
   async getTaskById(id: string): Promise<Task> {
     const task = await this.tasksRepository.findOne({ where: { id } });
     if (!task) throw new NotFoundException('Task not found');
     return task;
   }
-
-//  async createTask(data: CreateTaskDto): Promise<Task> {
-//     try {
-//       return await this.transactionService.execute(async (manager: EntityManager) => {
-//         const taskRepo = manager.getRepository(Task);
-
-//         // Convert dueDate from string to Date if provided
-//         const dueDate = data.dueDate ? new Date(data.dueDate) : undefined;
-//         if (dueDate && isNaN(dueDate.getTime())) {
-//           throw new InternalServerErrorException('Invalid dueDate format');
-//         }
-
-//         // Create task entity
-//         const task = taskRepo.create({
-//           title: data.title,
-//           description: data.description,
-//           dueDate,        // must match type in Task entity (Date | null)
-//           status: data.status || 'pending',
-//         });
-
-//         // Save in database
-//         const savedTask = await taskRepo.save(task);
-
-//         // Add to BullMQ queue
-//         if (this.taskQueue) {
-//           await this.taskQueue.add('task-status-update', {
-//             taskId: savedTask.id,
-//             status: savedTask.status,
-//           });
-//         }
-
-//         return savedTask;
-//       });
-//     } catch (error) {
-//       console.error('Failed to create task:', error);
-//       throw new InternalServerErrorException('Failed to create task');
-//     }
-//   }
 
   async updateTask(id: string, data: UpdateTaskDto): Promise<Task> {
   return this.transactionService.execute(async (manager: EntityManager) => {
@@ -118,27 +165,44 @@ export class TasksService {
     });
   }
 
-  async batchProcess(taskIds: string[], action: 'complete' | 'delete'): Promise<any[]> {
-    const results = [];
-    for (const id of taskIds) {
-      try {
-        let result;
-        switch (action) {
-          case 'complete':
-            result = await this.updateTask(id, { status: TaskStatus.COMPLETED });
-            break;
-          case 'delete':
-            await this.deleteTask(id);
-            result = { deleted: true };
-            break;
-        }
-        results.push({ taskId: id, success: true, result });
-      } catch (err: any) {
-        results.push({ taskId: id, success: false, error: err.message });
+ async batchProcess(
+  taskIds: string[],
+  action: 'complete' | 'delete',
+): Promise<{ taskId: string; success: boolean; result?: any; error?: string }[]> {
+  const results: { taskId: string; success: boolean; result?: any; error?: string }[] = [];
+
+  for (const id of taskIds) {
+    try {
+      let result;
+      switch (action) {
+        case 'complete':
+          // Update task status to COMPLETED
+          result = await this.updateTask(id, { status: TaskStatus.COMPLETED });
+          break;
+        case 'delete':
+          // Delete task
+          await this.deleteTask(id);
+          result = { deleted: true };
+          break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
       }
+
+      results.push({ taskId: id, success: true, result });
+    } catch (err: any) {
+      // Catch all errors for a task and continue
+      console.error(`Error processing task ${id}:`, err);
+      results.push({
+        taskId: id,
+        success: false,
+        error: err.message || 'Unknown error',
+      });
     }
-    return results;
   }
+
+  return results;
+}
+
 
   async getStatistics() {
     const qb = this.tasksRepository.createQueryBuilder('task');

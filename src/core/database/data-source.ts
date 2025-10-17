@@ -15,7 +15,7 @@ export const dataSourceOptions: DataSourceOptions = {
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [CreateInitialSchema1710752400000],
   migrationsTableName: 'migrations',
-  synchronize: false, // Important: Set to false for production
+  synchronize: true, // Important: Set to false for production
   logging: process.env.NODE_ENV === 'development',
 };
 
